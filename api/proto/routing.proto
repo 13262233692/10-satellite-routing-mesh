@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package leo_routing;
+
+option go_package = "github.com/aerospace/leo-routing-mesh/api/proto;routingpb";
+
+service RoutingService {
+  rpc FindRoute(FindRouteRequest) returns (FindRouteResponse);
+  rpc BatchFindRoute(BatchFindRouteRequest) returns (BatchFindRouteResponse);
+}
+
+service EphemerisService {
+  rpc UpdateEphemeris(UpdateEphemerisRequest) returns (UpdateEphemerisResponse);
+  rpc BatchUpdateEphemerides(BatchUpdateEphemeridesRequest) returns (BatchUpdateEphemeridesResponse);
+  rpc RebuildTopology(RebuildTopologyRequest) returns (RebuildTopologyResponse);
+}
+
+service TopologyService {
+  rpc GetTopologyInfo(GetTopologyInfoRequest) returns (GetTopologyInfoResponse);
+  rpc GetSatelliteInfo(GetSatelliteInfoRequest) returns (GetSatelliteInfoResponse);
+  rpc GetNeighbors(GetNeighborsRequest) returns (GetNeighborsResponse);
+}
+
+message Vec3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Ephemeris {
+  uint32 satellite_id = 1;
+  Vec3 position = 2;
+  Vec3 velocity = 3;
+  int64 timestamp = 4;
+}
+
+message FindRouteRequest {
+  uint32 from_satellite_id = 1;
+  uint32 to_satellite_id = 2;
+  int64 timestamp = 3;
+  string algorithm = 4;
+}
+
+message RouteHop {
+  uint32 from_satellite_id = 1;
+  uint32 to_satellite_id = 2;
+  double distance_meters = 3;
+  double latency_seconds = 4;
+}
+
+message FindRouteResponse {
+  bool found = 1;
+  repeated uint32 path = 2;
+  double total_distance_meters = 3;
+  double total_latency_seconds = 4;
+  int32 hops = 5;
+  repeated RouteHop hops_detail = 6;
+  int64 topology_version = 7;
+}
+
+message BatchFindRouteRequest {
+  repeated FindRouteRequest requests = 1;
+}
+
+message BatchFindRouteResponse {
+  repeated FindRouteResponse responses = 1;
+}
+
+message UpdateEphemerisRequest {
+  Ephemeris ephemeris = 1;
+}
+
+message UpdateEphemerisResponse {
+  bool success = 1;
+}
+
+message BatchUpdateEphemeridesRequest {
+  repeated Ephemeris ephemerides = 1;
+}
+
+message BatchUpdateEphemeridesResponse {
+  bool success = 1;
+  int32 updated_count = 2;
+}
+
+message RebuildTopologyRequest {
+}
+
+message RebuildTopologyResponse {
+  bool success = 1;
+  int64 rebuild_time_ns = 2;
+  int32 satellite_count = 3;
+  int32 link_count = 4;
+}
+
+message GetTopologyInfoRequest {
+}
+
+message GetTopologyInfoResponse {
+  int32 satellite_count = 1;
+  int32 link_count = 2;
+  int64 last_update_timestamp = 3;
+  uint64 topology_version = 4;
+}
+
+message GetSatelliteInfoRequest {
+  uint32 satellite_id = 1;
+}
+
+message GetSatelliteInfoResponse {
+  bool exists = 1;
+  uint32 satellite_id = 2;
+  string name = 3;
+  Vec3 position = 4;
+  Vec3 velocity = 5;
+  int32 neighbor_count = 6;
+}
+
+message GetNeighborsRequest {
+  uint32 satellite_id = 1;
+}
+
+message GetNeighborsResponse {
+  bool found = 1;
+  repeated NeighborInfo neighbors = 2;
+}
+
+message NeighborInfo {
+  uint32 satellite_id = 1;
+  double distance_meters = 2;
+  double latency_seconds = 3;
+}
