@@ -416,3 +416,189 @@ var TopologyService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "routing.proto",
 }
+
+const SpaceWeatherService_IngestSpaceWeather_FullMethodName = "/leo_routing.SpaceWeatherService/IngestSpaceWeather"
+const SpaceWeatherService_BatchIngestSpaceWeather_FullMethodName = "/leo_routing.SpaceWeatherService/BatchIngestSpaceWeather"
+const SpaceWeatherService_GetLinkQualityPrediction_FullMethodName = "/leo_routing.SpaceWeatherService/GetLinkQualityPrediction"
+const SpaceWeatherService_GetAffectedLinks_FullMethodName = "/leo_routing.SpaceWeatherService/GetAffectedLinks"
+
+type SpaceWeatherServiceClient interface {
+	IngestSpaceWeather(ctx context.Context, in *IngestSpaceWeatherRequest, opts ...grpc.CallOption) (*IngestSpaceWeatherResponse, error)
+	BatchIngestSpaceWeather(ctx context.Context, in *BatchIngestSpaceWeatherRequest, opts ...grpc.CallOption) (*BatchIngestSpaceWeatherResponse, error)
+	GetLinkQualityPrediction(ctx context.Context, in *GetLinkQualityPredictionRequest, opts ...grpc.CallOption) (*GetLinkQualityPredictionResponse, error)
+	GetAffectedLinks(ctx context.Context, in *GetAffectedLinksRequest, opts ...grpc.CallOption) (*GetAffectedLinksResponse, error)
+}
+
+type spaceWeatherServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSpaceWeatherServiceClient(cc grpc.ClientConnInterface) SpaceWeatherServiceClient {
+	return &spaceWeatherServiceClient{cc}
+}
+
+func (c *spaceWeatherServiceClient) IngestSpaceWeather(ctx context.Context, in *IngestSpaceWeatherRequest, opts ...grpc.CallOption) (*IngestSpaceWeatherResponse, error) {
+	out := new(IngestSpaceWeatherResponse)
+	err := c.cc.Invoke(ctx, SpaceWeatherService_IngestSpaceWeather_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *spaceWeatherServiceClient) BatchIngestSpaceWeather(ctx context.Context, in *BatchIngestSpaceWeatherRequest, opts ...grpc.CallOption) (*BatchIngestSpaceWeatherResponse, error) {
+	out := new(BatchIngestSpaceWeatherResponse)
+	err := c.cc.Invoke(ctx, SpaceWeatherService_BatchIngestSpaceWeather_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *spaceWeatherServiceClient) GetLinkQualityPrediction(ctx context.Context, in *GetLinkQualityPredictionRequest, opts ...grpc.CallOption) (*GetLinkQualityPredictionResponse, error) {
+	out := new(GetLinkQualityPredictionResponse)
+	err := c.cc.Invoke(ctx, SpaceWeatherService_GetLinkQualityPrediction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *spaceWeatherServiceClient) GetAffectedLinks(ctx context.Context, in *GetAffectedLinksRequest, opts ...grpc.CallOption) (*GetAffectedLinksResponse, error) {
+	out := new(GetAffectedLinksResponse)
+	err := c.cc.Invoke(ctx, SpaceWeatherService_GetAffectedLinks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type SpaceWeatherServiceServer interface {
+	IngestSpaceWeather(context.Context, *IngestSpaceWeatherRequest) (*IngestSpaceWeatherResponse, error)
+	BatchIngestSpaceWeather(context.Context, *BatchIngestSpaceWeatherRequest) (*BatchIngestSpaceWeatherResponse, error)
+	GetLinkQualityPrediction(context.Context, *GetLinkQualityPredictionRequest) (*GetLinkQualityPredictionResponse, error)
+	GetAffectedLinks(context.Context, *GetAffectedLinksRequest) (*GetAffectedLinksResponse, error)
+	mustEmbedUnimplementedSpaceWeatherServiceServer()
+}
+
+type UnimplementedSpaceWeatherServiceServer struct {
+}
+
+func (UnimplementedSpaceWeatherServiceServer) IngestSpaceWeather(context.Context, *IngestSpaceWeatherRequest) (*IngestSpaceWeatherResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IngestSpaceWeather not implemented")
+}
+func (UnimplementedSpaceWeatherServiceServer) BatchIngestSpaceWeather(context.Context, *BatchIngestSpaceWeatherRequest) (*BatchIngestSpaceWeatherResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BatchIngestSpaceWeather not implemented")
+}
+func (UnimplementedSpaceWeatherServiceServer) GetLinkQualityPrediction(context.Context, *GetLinkQualityPredictionRequest) (*GetLinkQualityPredictionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLinkQualityPrediction not implemented")
+}
+func (UnimplementedSpaceWeatherServiceServer) GetAffectedLinks(context.Context, *GetAffectedLinksRequest) (*GetAffectedLinksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAffectedLinks not implemented")
+}
+func (UnimplementedSpaceWeatherServiceServer) mustEmbedUnimplementedSpaceWeatherServiceServer() {}
+
+type UnsafeSpaceWeatherServiceServer interface {
+	mustEmbedUnimplementedSpaceWeatherServiceServer()
+}
+
+func RegisterSpaceWeatherServiceServer(s grpc.ServiceRegistrar, srv SpaceWeatherServiceServer) {
+	s.RegisterService(&SpaceWeatherService_ServiceDesc, srv)
+}
+
+func _SpaceWeatherService_IngestSpaceWeather_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IngestSpaceWeatherRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SpaceWeatherServiceServer).IngestSpaceWeather(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SpaceWeatherService_IngestSpaceWeather_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SpaceWeatherServiceServer).IngestSpaceWeather(ctx, req.(*IngestSpaceWeatherRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SpaceWeatherService_BatchIngestSpaceWeather_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchIngestSpaceWeatherRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SpaceWeatherServiceServer).BatchIngestSpaceWeather(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SpaceWeatherService_BatchIngestSpaceWeather_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SpaceWeatherServiceServer).BatchIngestSpaceWeather(ctx, req.(*BatchIngestSpaceWeatherRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SpaceWeatherService_GetLinkQualityPrediction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLinkQualityPredictionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SpaceWeatherServiceServer).GetLinkQualityPrediction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SpaceWeatherService_GetLinkQualityPrediction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SpaceWeatherServiceServer).GetLinkQualityPrediction(ctx, req.(*GetLinkQualityPredictionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SpaceWeatherService_GetAffectedLinks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAffectedLinksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SpaceWeatherServiceServer).GetAffectedLinks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SpaceWeatherService_GetAffectedLinks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SpaceWeatherServiceServer).GetAffectedLinks(ctx, req.(*GetAffectedLinksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var SpaceWeatherService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "leo_routing.SpaceWeatherService",
+	HandlerType: (*SpaceWeatherServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "IngestSpaceWeather",
+			Handler:    _SpaceWeatherService_IngestSpaceWeather_Handler,
+		},
+		{
+			MethodName: "BatchIngestSpaceWeather",
+			Handler:    _SpaceWeatherService_BatchIngestSpaceWeather_Handler,
+		},
+		{
+			MethodName: "GetLinkQualityPrediction",
+			Handler:    _SpaceWeatherService_GetLinkQualityPrediction_Handler,
+		},
+		{
+			MethodName: "GetAffectedLinks",
+			Handler:    _SpaceWeatherService_GetAffectedLinks_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "routing.proto",
+}

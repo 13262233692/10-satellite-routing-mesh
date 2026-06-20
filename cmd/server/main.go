@@ -19,6 +19,7 @@ import (
 	"github.com/aerospace/leo-routing-mesh/internal/routing"
 	"github.com/aerospace/leo-routing-mesh/internal/server"
 	"github.com/aerospace/leo-routing-mesh/internal/topology"
+	"github.com/aerospace/leo-routing-mesh/internal/weather"
 	"github.com/aerospace/leo-routing-mesh/pkg/model"
 )
 
@@ -30,6 +31,8 @@ var (
 	rebuildInterval = flag.Int("rebuild-interval-ms", 1000, "Topology rebuild interval in milliseconds")
 	cacheCapacity   = flag.Int("cache-capacity", 10000, "Route cache capacity")
 	enableCache     = flag.Bool("enable-cache", true, "Enable route result caching")
+	enablePrediction = flag.Bool("enable-prediction", true, "Enable predictive link quality weighting")
+	predictWindow    = flag.Int("prediction-window-sec", 300, "Prediction time window in seconds")
 )
 
 func main() {
@@ -40,6 +43,7 @@ func main() {
 	log.Printf("gRPC port: %d", *grpcPort)
 	log.Printf("Rebuild interval: %dms", *rebuildInterval)
 	log.Printf("Route cache enabled: %v, capacity: %d", *enableCache, *cacheCapacity)
+	log.Printf("Predictive weighting enabled: %v, window: %ds", *enablePrediction, *predictWindow)
 
 	topoMgr := topology.NewTopologyManager(*maxSatellites)
 	router := routing.NewRouter()
@@ -47,6 +51,14 @@ func main() {
 	var routeCache *routing.RouteCache
 	if *enableCache {
 		routeCache = routing.NewRouteCache(*cacheCapacity)
+	}
+
+	var predictor *weather.LinkQualityPredictor
+	var weatherSrv *server.SpaceWeatherServer
+	if *enablePrediction {
+		predictor = weather.NewLinkQualityPredictor()
+		topoMgr.SetWeightPredictor(predictor)
+		weatherSrv = server.NewSpaceWeatherServer(predictor)
 	}
 
 	routingSrv := server.NewRoutingServer(topoMgr, router, routeCache)
@@ -78,6 +90,9 @@ func main() {
 	routingpb.RegisterRoutingServiceServer(grpcServer, routingSrv)
 	routingpb.RegisterEphemerisServiceServer(grpcServer, ephemerisSrv)
 	routingpb.RegisterTopologyServiceServer(grpcServer, topologySrv)
+	if weatherSrv != nil {
+		routingpb.RegisterSpaceWeatherServiceServer(grpcServer, weatherSrv)
+	}
 
 	reflection.Register(grpcServer)
 

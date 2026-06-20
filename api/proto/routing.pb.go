@@ -634,4 +634,363 @@ func (x *GetNeighborsResponse) GetNeighbors() []*NeighborInfo {
 	return nil
 }
 
+type SpaceWeatherType int32
+
+const (
+	SpaceWeatherType_SPACE_WEATHER_NONE          SpaceWeatherType = 0
+	SpaceWeatherType_SPACE_WEATHER_SOLAR_FLARE   SpaceWeatherType = 1
+	SpaceWeatherType_SPACE_WEATHER_COSMIC_RAY    SpaceWeatherType = 2
+	SpaceWeatherType_SPACE_WEATHER_ATMOSPHERIC   SpaceWeatherType = 3
+	SpaceWeatherType_SPACE_WEATHER_MAGNETIC_STORM SpaceWeatherType = 4
+)
+
+type SpaceWeatherData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	LinkId         uint64           `protobuf:"varint,1,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	SatA           uint32           `protobuf:"varint,2,opt,name=sat_a,json=satA,proto3" json:"sat_a,omitempty"`
+	SatB           uint32           `protobuf:"varint,3,opt,name=sat_b,json=satB,proto3" json:"sat_b,omitempty"`
+	Timestamp      int64            `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	SnrDb          float64          `protobuf:"fixed64,5,opt,name=snr_db,json=snrDb,proto3" json:"snr_db,omitempty"`
+	Attenuation    float64          `protobuf:"fixed64,6,opt,name=attenuation,proto3" json:"attenuation,omitempty"`
+	WeatherType    SpaceWeatherType `protobuf:"varint,7,opt,name=weather_type,json=weatherType,proto3,enum=leo_routing.SpaceWeatherType" json:"weather_type,omitempty"`
+	Severity       float64          `protobuf:"fixed64,8,opt,name=severity,proto3" json:"severity,omitempty"`
+	CloudThickness float64          `protobuf:"fixed64,9,opt,name=cloud_thickness,json=cloudThickness,proto3" json:"cloud_thickness,omitempty"`
+	ParticleFlux   float64          `protobuf:"fixed64,10,opt,name=particle_flux,json=particleFlux,proto3" json:"particle_flux,omitempty"`
+}
+
+func (x *SpaceWeatherData) Reset()         { *x = SpaceWeatherData{} }
+func (x *SpaceWeatherData) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*SpaceWeatherData) ProtoMessage()    {}
+func (x *SpaceWeatherData) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *SpaceWeatherData) GetLinkId() uint64 {
+	if x != nil {
+		return x.LinkId
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetSatA() uint32 {
+	if x != nil {
+		return x.SatA
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetSatB() uint32 {
+	if x != nil {
+		return x.SatB
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetSnrDb() float64 {
+	if x != nil {
+		return x.SnrDb
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetAttenuation() float64 {
+	if x != nil {
+		return x.Attenuation
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetWeatherType() SpaceWeatherType {
+	if x != nil {
+		return x.WeatherType
+	}
+	return SpaceWeatherType_SPACE_WEATHER_NONE
+}
+func (x *SpaceWeatherData) GetSeverity() float64 {
+	if x != nil {
+		return x.Severity
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetCloudThickness() float64 {
+	if x != nil {
+		return x.CloudThickness
+	}
+	return 0
+}
+func (x *SpaceWeatherData) GetParticleFlux() float64 {
+	if x != nil {
+		return x.ParticleFlux
+	}
+	return 0
+}
+
+type IngestSpaceWeatherRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Data *SpaceWeatherData `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+}
+
+func (x *IngestSpaceWeatherRequest) Reset()         { *x = IngestSpaceWeatherRequest{} }
+func (x *IngestSpaceWeatherRequest) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*IngestSpaceWeatherRequest) ProtoMessage()    {}
+func (x *IngestSpaceWeatherRequest) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *IngestSpaceWeatherRequest) GetData() *SpaceWeatherData {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type IngestSpaceWeatherResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+}
+
+func (x *IngestSpaceWeatherResponse) Reset()         { *x = IngestSpaceWeatherResponse{} }
+func (x *IngestSpaceWeatherResponse) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*IngestSpaceWeatherResponse) ProtoMessage()    {}
+func (x *IngestSpaceWeatherResponse) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *IngestSpaceWeatherResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type BatchIngestSpaceWeatherRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Data []*SpaceWeatherData `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
+}
+
+func (x *BatchIngestSpaceWeatherRequest) Reset()         { *x = BatchIngestSpaceWeatherRequest{} }
+func (x *BatchIngestSpaceWeatherRequest) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*BatchIngestSpaceWeatherRequest) ProtoMessage()    {}
+func (x *BatchIngestSpaceWeatherRequest) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *BatchIngestSpaceWeatherRequest) GetData() []*SpaceWeatherData {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type BatchIngestSpaceWeatherResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Success        bool  `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	IngestedCount  int32 `protobuf:"varint,2,opt,name=ingested_count,json=ingestedCount,proto3" json:"ingested_count,omitempty"`
+}
+
+func (x *BatchIngestSpaceWeatherResponse) Reset()         { *x = BatchIngestSpaceWeatherResponse{} }
+func (x *BatchIngestSpaceWeatherResponse) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*BatchIngestSpaceWeatherResponse) ProtoMessage()    {}
+func (x *BatchIngestSpaceWeatherResponse) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *BatchIngestSpaceWeatherResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+func (x *BatchIngestSpaceWeatherResponse) GetIngestedCount() int32 {
+	if x != nil {
+		return x.IngestedCount
+	}
+	return 0
+}
+
+type GetLinkQualityPredictionRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	SatA uint32 `protobuf:"varint,1,opt,name=sat_a,json=satA,proto3" json:"sat_a,omitempty"`
+	SatB uint32 `protobuf:"varint,2,opt,name=sat_b,json=satB,proto3" json:"sat_b,omitempty"`
+}
+
+func (x *GetLinkQualityPredictionRequest) Reset()         { *x = GetLinkQualityPredictionRequest{} }
+func (x *GetLinkQualityPredictionRequest) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*GetLinkQualityPredictionRequest) ProtoMessage()    {}
+func (x *GetLinkQualityPredictionRequest) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *GetLinkQualityPredictionRequest) GetSatA() uint32 {
+	if x != nil {
+		return x.SatA
+	}
+	return 0
+}
+func (x *GetLinkQualityPredictionRequest) GetSatB() uint32 {
+	if x != nil {
+		return x.SatB
+	}
+	return 0
+}
+
+type LinkQualityPrediction struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	LinkId           uint64  `protobuf:"varint,1,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	SatA             uint32  `protobuf:"varint,2,opt,name=sat_a,json=satA,proto3" json:"sat_a,omitempty"`
+	SatB             uint32  `protobuf:"varint,3,opt,name=sat_b,json=satB,proto3" json:"sat_b,omitempty"`
+	CurrentSnr       float64 `protobuf:"fixed64,4,opt,name=current_snr,json=currentSnr,proto3" json:"current_snr,omitempty"`
+	PredictedSnr     float64 `protobuf:"fixed64,5,opt,name=predicted_snr,json=predictedSnr,proto3" json:"predicted_snr,omitempty"`
+	Trend            float64 `protobuf:"fixed64,6,opt,name=trend,proto3" json:"trend,omitempty"`
+	Confidence       float64 `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	PredictionTime   int64   `protobuf:"varint,8,opt,name=prediction_time,json=predictionTime,proto3" json:"prediction_time,omitempty"`
+	WeightMultiplier float64 `protobuf:"fixed64,9,opt,name=weight_multiplier,json=weightMultiplier,proto3" json:"weight_multiplier,omitempty"`
+	WarningLevel     int32   `protobuf:"varint,10,opt,name=warning_level,json=warningLevel,proto3" json:"warning_level,omitempty"`
+}
+
+func (x *LinkQualityPrediction) Reset()         { *x = LinkQualityPrediction{} }
+func (x *LinkQualityPrediction) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*LinkQualityPrediction) ProtoMessage()    {}
+func (x *LinkQualityPrediction) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *LinkQualityPrediction) GetLinkId() uint64 {
+	if x != nil {
+		return x.LinkId
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetSatA() uint32 {
+	if x != nil {
+		return x.SatA
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetSatB() uint32 {
+	if x != nil {
+		return x.SatB
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetCurrentSnr() float64 {
+	if x != nil {
+		return x.CurrentSnr
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetPredictedSnr() float64 {
+	if x != nil {
+		return x.PredictedSnr
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetTrend() float64 {
+	if x != nil {
+		return x.Trend
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetPredictionTime() int64 {
+	if x != nil {
+		return x.PredictionTime
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetWeightMultiplier() float64 {
+	if x != nil {
+		return x.WeightMultiplier
+	}
+	return 0
+}
+func (x *LinkQualityPrediction) GetWarningLevel() int32 {
+	if x != nil {
+		return x.WarningLevel
+	}
+	return 0
+}
+
+type GetLinkQualityPredictionResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Found      bool                  `protobuf:"varint,1,opt,name=found,proto3" json:"found,omitempty"`
+	Prediction *LinkQualityPrediction `protobuf:"bytes,2,opt,name=prediction,proto3" json:"prediction,omitempty"`
+}
+
+func (x *GetLinkQualityPredictionResponse) Reset()         { *x = GetLinkQualityPredictionResponse{} }
+func (x *GetLinkQualityPredictionResponse) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*GetLinkQualityPredictionResponse) ProtoMessage()    {}
+func (x *GetLinkQualityPredictionResponse) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *GetLinkQualityPredictionResponse) GetFound() bool {
+	if x != nil {
+		return x.Found
+	}
+	return false
+}
+func (x *GetLinkQualityPredictionResponse) GetPrediction() *LinkQualityPrediction {
+	if x != nil {
+		return x.Prediction
+	}
+	return nil
+}
+
+type GetAffectedLinksRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetAffectedLinksRequest) Reset()         { *x = GetAffectedLinksRequest{} }
+func (x *GetAffectedLinksRequest) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*GetAffectedLinksRequest) ProtoMessage()    {}
+func (x *GetAffectedLinksRequest) ProtoReflect() protoreflect.Message {
+	return nil
+}
+
+type GetAffectedLinksResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	AffectedLinks []*LinkQualityPrediction `protobuf:"bytes,1,rep,name=affected_links,json=affectedLinks,proto3" json:"affected_links,omitempty"`
+}
+
+func (x *GetAffectedLinksResponse) Reset()         { *x = GetAffectedLinksResponse{} }
+func (x *GetAffectedLinksResponse) String() string { return protoimpl.X.MessageStringOf(x) }
+func (*GetAffectedLinksResponse) ProtoMessage()    {}
+func (x *GetAffectedLinksResponse) ProtoReflect() protoreflect.Message {
+	return nil
+}
+func (x *GetAffectedLinksResponse) GetAffectedLinks() []*LinkQualityPrediction {
+	if x != nil {
+		return x.AffectedLinks
+	}
+	return nil
+}
+
 var _ = proto.Marshal

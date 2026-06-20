@@ -18,6 +18,10 @@ type CacheInvalidator interface {
 	SetEpoch(epoch uint64)
 }
 
+type WeightPredictor interface {
+	GetWeightMultiplier(satA, satB model.SatelliteID) float64
+}
+
 type TopologyManager struct {
 	satellites  []model.Satellite
 	ephemerides []model.Ephemeris
@@ -36,6 +40,9 @@ type TopologyManager struct {
 
 	cacheInvalidator CacheInvalidator
 	cacheMu          sync.RWMutex
+
+	weightPredictor WeightPredictor
+	enablePrediction bool
 }
 
 func NewTopologyManager(maxSatellites int) *TopologyManager {
@@ -65,6 +72,13 @@ func (tm *TopologyManager) SetCacheInvalidator(ci CacheInvalidator) {
 	tm.cacheMu.Lock()
 	defer tm.cacheMu.Unlock()
 	tm.cacheInvalidator = ci
+}
+
+func (tm *TopologyManager) SetWeightPredictor(wp WeightPredictor) {
+	tm.buildLock.Lock()
+	defer tm.buildLock.Unlock()
+	tm.weightPredictor = wp
+	tm.enablePrediction = wp != nil
 }
 
 func (tm *TopologyManager) GetSnapshot() model.TopologySnapshot {
@@ -199,7 +213,16 @@ func (tm *TopologyManager) buildEdges(matrix *model.SparseAdjacencyMatrix) {
 
 		for k := 0; k < limit; k++ {
 			c := candidates[i][k]
-			matrix.AddEdge(i, c.to, c.weight)
+			edgeWeight := c.weight
+
+			if tm.enablePrediction && tm.weightPredictor != nil {
+				mult := tm.weightPredictor.GetWeightMultiplier(ids[i], ids[c.to])
+				if mult > 1.0 {
+					edgeWeight *= mult
+				}
+			}
+
+			matrix.AddEdge(i, c.to, edgeWeight)
 		}
 	}
 }

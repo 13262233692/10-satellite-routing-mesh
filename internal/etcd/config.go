@@ -47,7 +47,7 @@ type Config struct {
 type TopologyUpdater interface {
 	UpdateEphemeris(ephem *model.Ephemeris)
 	BatchUpdateEphemerides(ephems []model.Ephemeris)
-	RebuildTopology()
+	RebuildTopology() uint64
 	AddSatellite(sat model.Satellite)
 }
 

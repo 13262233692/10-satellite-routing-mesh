@@ -21,6 +21,13 @@ service TopologyService {
   rpc GetNeighbors(GetNeighborsRequest) returns (GetNeighborsResponse);
 }
 
+service SpaceWeatherService {
+  rpc IngestSpaceWeather(IngestSpaceWeatherRequest) returns (IngestSpaceWeatherResponse);
+  rpc BatchIngestSpaceWeather(BatchIngestSpaceWeatherRequest) returns (BatchIngestSpaceWeatherResponse);
+  rpc GetLinkQualityPrediction(GetLinkQualityPredictionRequest) returns (GetLinkQualityPredictionResponse);
+  rpc GetAffectedLinks(GetAffectedLinksRequest) returns (GetAffectedLinksResponse);
+}
+
 message Vec3 {
   double x = 1;
   double y = 2;
@@ -129,4 +136,72 @@ message NeighborInfo {
   uint32 satellite_id = 1;
   double distance_meters = 2;
   double latency_seconds = 3;
+}
+
+enum SpaceWeatherType {
+  SPACE_WEATHER_NONE = 0;
+  SPACE_WEATHER_SOLAR_FLARE = 1;
+  SPACE_WEATHER_COSMIC_RAY = 2;
+  SPACE_WEATHER_ATMOSPHERIC = 3;
+  SPACE_WEATHER_MAGNETIC_STORM = 4;
+}
+
+message SpaceWeatherData {
+  uint64 link_id = 1;
+  uint32 sat_a = 2;
+  uint32 sat_b = 3;
+  int64 timestamp = 4;
+  double snr_db = 5;
+  double attenuation = 6;
+  SpaceWeatherType weather_type = 7;
+  double severity = 8;
+  double cloud_thickness = 9;
+  double particle_flux = 10;
+}
+
+message IngestSpaceWeatherRequest {
+  SpaceWeatherData data = 1;
+}
+
+message IngestSpaceWeatherResponse {
+  bool success = 1;
+}
+
+message BatchIngestSpaceWeatherRequest {
+  repeated SpaceWeatherData data = 1;
+}
+
+message BatchIngestSpaceWeatherResponse {
+  bool success = 1;
+  int32 ingested_count = 2;
+}
+
+message GetLinkQualityPredictionRequest {
+  uint32 sat_a = 1;
+  uint32 sat_b = 2;
+}
+
+message LinkQualityPrediction {
+  uint64 link_id = 1;
+  uint32 sat_a = 2;
+  uint32 sat_b = 3;
+  double current_snr = 4;
+  double predicted_snr = 5;
+  double trend = 6;
+  double confidence = 7;
+  int64 prediction_time = 8;
+  double weight_multiplier = 9;
+  int32 warning_level = 10;
+}
+
+message GetLinkQualityPredictionResponse {
+  bool found = 1;
+  LinkQualityPrediction prediction = 2;
+}
+
+message GetAffectedLinksRequest {
+}
+
+message GetAffectedLinksResponse {
+  repeated LinkQualityPrediction affected_links = 1;
 }
