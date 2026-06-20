@@ -9,14 +9,17 @@ import (
 )
 
 const (
-	inf = math.MaxFloat64
+	inf              = math.MaxFloat64
+	maxPathHops      = 256
+	maxRelaxPerNode  = 16
 )
 
 type Router struct {
-	distPool  sync.Pool
-	prevPool  sync.Pool
-	heapPool  sync.Pool
+	distPool    sync.Pool
+	prevPool    sync.Pool
+	heapPool    sync.Pool
 	visitedPool sync.Pool
+	relaxPool   sync.Pool
 }
 
 func NewRouter() *Router {
@@ -40,6 +43,11 @@ func NewRouter() *Router {
 		visitedPool: sync.Pool{
 			New: func() interface{} {
 				return make([]bool, 0, model.MaxSatellites)
+			},
+		},
+		relaxPool: sync.Pool{
+			New: func() interface{} {
+				return make([]uint16, 0, model.MaxSatellites)
 			},
 		},
 	}
@@ -76,6 +84,11 @@ func (pq *PriorityQueue) Pop() interface{} {
 }
 
 func (r *Router) Dijkstra(matrix *model.SparseAdjacencyMatrix, fromID, toID model.SatelliteID) model.RouteResult {
+	epoch := matrix.GetEpoch()
+	if epoch == 0 || !matrix.IsFrozen() {
+		return model.RouteResult{Found: false}
+	}
+
 	fromIdx, ok := matrix.GetNodeIndex(fromID)
 	if !ok {
 		return model.RouteResult{Found: false}
@@ -86,20 +99,23 @@ func (r *Router) Dijkstra(matrix *model.SparseAdjacencyMatrix, fromID, toID mode
 		return model.RouteResult{Found: false}
 	}
 
-	n := matrix.Nodes
+	n := matrix.Nodes()
 
 	dist := r.getDistSlice(n)
 	prev := r.getPrevSlice(n)
 	visited := r.getVisitedSlice(n)
+	relaxCount := r.getRelaxSlice(n)
 
 	defer r.putDistSlice(dist)
 	defer r.putPrevSlice(prev)
 	defer r.putVisitedSlice(visited)
+	defer r.putRelaxSlice(relaxCount)
 
 	for i := 0; i < n; i++ {
 		dist[i] = inf
 		prev[i] = -1
 		visited[i] = false
+		relaxCount[i] = 0
 	}
 	dist[fromIdx] = 0
 
@@ -128,7 +144,24 @@ func (r *Router) Dijkstra(matrix *model.SparseAdjacencyMatrix, fromID, toID mode
 		neighbors := matrix.Neighbors(u.index)
 		for _, edge := range neighbors {
 			v := int(edge.Target)
+
+			if v >= n || v < 0 {
+				continue
+			}
+
+			if visited[v] {
+				continue
+			}
+
+			relaxCount[v]++
+			if relaxCount[v] > maxRelaxPerNode {
+				continue
+			}
+
 			alt := dist[u.index] + edge.Weight
+			if alt < 0 || alt > inf {
+				continue
+			}
 
 			if alt < dist[v] {
 				dist[v] = alt
@@ -144,6 +177,10 @@ func (r *Router) Dijkstra(matrix *model.SparseAdjacencyMatrix, fromID, toID mode
 
 	path := r.reconstructPath(prev, fromIdx, toIdx, matrix)
 
+	if !r.validatePathNoLoop(path) {
+		return model.RouteResult{Found: false}
+	}
+
 	return model.RouteResult{
 		Path:      path,
 		TotalDist: dist[toIdx] * 299792458,
@@ -154,6 +191,11 @@ func (r *Router) Dijkstra(matrix *model.SparseAdjacencyMatrix, fromID, toID mode
 }
 
 func (r *Router) AStar(matrix *model.SparseAdjacencyMatrix, fromID, toID model.SatelliteID, positions []model.Vec3) model.RouteResult {
+	epoch := matrix.GetEpoch()
+	if epoch == 0 || !matrix.IsFrozen() {
+		return model.RouteResult{Found: false}
+	}
+
 	fromIdx, ok := matrix.GetNodeIndex(fromID)
 	if !ok {
 		return model.RouteResult{Found: false}
@@ -164,23 +206,30 @@ func (r *Router) AStar(matrix *model.SparseAdjacencyMatrix, fromID, toID model.S
 		return model.RouteResult{Found: false}
 	}
 
-	n := matrix.Nodes
+	n := matrix.Nodes()
+
+	if len(positions) < n {
+		return model.RouteResult{Found: false}
+	}
 
 	gScore := r.getDistSlice(n)
 	fScore := r.getDistSlice(n)
 	prev := r.getPrevSlice(n)
 	visited := r.getVisitedSlice(n)
+	relaxCount := r.getRelaxSlice(n)
 
 	defer r.putDistSlice(gScore)
 	defer r.putDistSlice(fScore)
 	defer r.putPrevSlice(prev)
 	defer r.putVisitedSlice(visited)
+	defer r.putRelaxSlice(relaxCount)
 
 	for i := 0; i < n; i++ {
 		gScore[i] = inf
 		fScore[i] = inf
 		prev[i] = -1
 		visited[i] = false
+		relaxCount[i] = 0
 	}
 	gScore[fromIdx] = 0
 
@@ -214,11 +263,23 @@ func (r *Router) AStar(matrix *model.SparseAdjacencyMatrix, fromID, toID model.S
 		for _, edge := range neighbors {
 			v := int(edge.Target)
 
+			if v >= n || v < 0 {
+				continue
+			}
+
 			if visited[v] {
 				continue
 			}
 
+			relaxCount[v]++
+			if relaxCount[v] > maxRelaxPerNode {
+				continue
+			}
+
 			tentativeG := gScore[current.index] + edge.Weight
+			if tentativeG < 0 || tentativeG > inf {
+				continue
+			}
 
 			if tentativeG < gScore[v] {
 				gScore[v] = tentativeG
@@ -238,6 +299,10 @@ func (r *Router) AStar(matrix *model.SparseAdjacencyMatrix, fromID, toID model.S
 
 	path := r.reconstructPath(prev, fromIdx, toIdx, matrix)
 
+	if !r.validatePathNoLoop(path) {
+		return model.RouteResult{Found: false}
+	}
+
 	return model.RouteResult{
 		Path:      path,
 		TotalDist: gScore[toIdx] * 299792458,
@@ -250,13 +315,27 @@ func (r *Router) AStar(matrix *model.SparseAdjacencyMatrix, fromID, toID model.S
 func (r *Router) reconstructPath(prev []int, fromIdx, toIdx int, matrix *model.SparseAdjacencyMatrix) []model.SatelliteID {
 	pathIndices := make([]int, 0, 32)
 	current := toIdx
+	steps := 0
 
 	for current != -1 {
+		steps++
+		if steps > maxPathHops {
+			return nil
+		}
+
 		pathIndices = append(pathIndices, current)
 		if current == fromIdx {
 			break
 		}
+
+		if current < 0 || current >= len(prev) {
+			return nil
+		}
 		current = prev[current]
+	}
+
+	if len(pathIndices) == 0 || pathIndices[len(pathIndices)-1] != fromIdx {
+		return nil
 	}
 
 	for i, j := 0, len(pathIndices)-1; i < j; i, j = i+1, j-1 {
@@ -265,11 +344,32 @@ func (r *Router) reconstructPath(prev []int, fromIdx, toIdx int, matrix *model.S
 
 	path := make([]model.SatelliteID, len(pathIndices))
 	for i, idx := range pathIndices {
-		id, _ := matrix.GetSatelliteID(idx)
+		id, ok := matrix.GetSatelliteID(idx)
+		if !ok {
+			return nil
+		}
 		path[i] = id
 	}
 
 	return path
+}
+
+func (r *Router) validatePathNoLoop(path []model.SatelliteID) bool {
+	if path == nil || len(path) == 0 {
+		return false
+	}
+	if len(path) > maxPathHops {
+		return false
+	}
+
+	seen := make(map[model.SatelliteID]struct{}, len(path))
+	for _, id := range path {
+		if _, exists := seen[id]; exists {
+			return false
+		}
+		seen[id] = struct{}{}
+	}
+	return true
 }
 
 func (r *Router) getDistSlice(n int) []float64 {
@@ -312,6 +412,20 @@ func (r *Router) getVisitedSlice(n int) []bool {
 
 func (r *Router) putVisitedSlice(s []bool) {
 	r.visitedPool.Put(s)
+}
+
+func (r *Router) getRelaxSlice(n int) []uint16 {
+	s := r.relaxPool.Get().([]uint16)
+	if cap(s) < n {
+		s = make([]uint16, n)
+	} else {
+		s = s[:n]
+	}
+	return s
+}
+
+func (r *Router) putRelaxSlice(s []uint16) {
+	r.relaxPool.Put(s)
 }
 
 func (r *Router) getHeap() *PriorityQueue {

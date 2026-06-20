@@ -23,11 +23,13 @@ import (
 )
 
 var (
-	grpcPort      = flag.Int("port", 50051, "gRPC server port")
-	maxSatellites = flag.Int("max-satellites", model.MaxSatellites, "Maximum number of satellites")
-	etcdEndpoints = flag.String("etcd-endpoints", "localhost:2379", "Comma-separated etcd endpoints")
-	useEtcd       = flag.Bool("use-etcd", false, "Enable etcd integration")
+	grpcPort        = flag.Int("port", 50051, "gRPC server port")
+	maxSatellites   = flag.Int("max-satellites", model.MaxSatellites, "Maximum number of satellites")
+	etcdEndpoints   = flag.String("etcd-endpoints", "localhost:2379", "Comma-separated etcd endpoints")
+	useEtcd         = flag.Bool("use-etcd", false, "Enable etcd integration")
 	rebuildInterval = flag.Int("rebuild-interval-ms", 1000, "Topology rebuild interval in milliseconds")
+	cacheCapacity   = flag.Int("cache-capacity", 10000, "Route cache capacity")
+	enableCache     = flag.Bool("enable-cache", true, "Enable route result caching")
 )
 
 func main() {
@@ -37,11 +39,17 @@ func main() {
 	log.Printf("Max satellites: %d", *maxSatellites)
 	log.Printf("gRPC port: %d", *grpcPort)
 	log.Printf("Rebuild interval: %dms", *rebuildInterval)
+	log.Printf("Route cache enabled: %v, capacity: %d", *enableCache, *cacheCapacity)
 
 	topoMgr := topology.NewTopologyManager(*maxSatellites)
 	router := routing.NewRouter()
 
-	routingSrv := server.NewRoutingServer(topoMgr, router)
+	var routeCache *routing.RouteCache
+	if *enableCache {
+		routeCache = routing.NewRouteCache(*cacheCapacity)
+	}
+
+	routingSrv := server.NewRoutingServer(topoMgr, router, routeCache)
 	ephemerisSrv := server.NewEphemerisServer(topoMgr)
 	topologySrv := server.NewTopologyServer(topoMgr)
 
@@ -114,8 +122,8 @@ func startRebuildTicker(topoMgr *topology.TopologyManager, interval time.Duratio
 		count++
 
 		if count%10 == 0 {
-			matrix := topoMgr.GetMatrix()
-			log.Printf("Topology rebuilt #%d: nodes=%d, time=%v", count, matrix.Nodes, elapsed)
+			snapshot := topoMgr.GetSnapshot()
+			log.Printf("Topology rebuilt #%d: epoch=%d, nodes=%d, time=%v", count, snapshot.Epoch, snapshot.Matrix.Nodes(), elapsed)
 		}
 	}
 }

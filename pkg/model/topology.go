@@ -2,6 +2,7 @@ package model
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 type Link struct {
@@ -19,11 +20,17 @@ type AdjacencyEntry struct {
 }
 
 type SparseAdjacencyMatrix struct {
-	Nodes    int
-	Edges    [][]AdjacencyEntry
+	epoch    uint64
+	nodes    int
+	edges    [][]AdjacencyEntry
 	idToIdx  map[SatelliteID]int
 	idxToID  []SatelliteID
-	version  uint64
+	frozen   uint32
+}
+
+type TopologySnapshot struct {
+	Matrix *SparseAdjacencyMatrix
+	Epoch  uint64
 }
 
 var adjacencyPool = sync.Pool{
@@ -34,38 +41,65 @@ var adjacencyPool = sync.Pool{
 
 func GetAdjacencyMatrix() *SparseAdjacencyMatrix {
 	m := adjacencyPool.Get().(*SparseAdjacencyMatrix)
-	m.version++
+	atomic.StoreUint32(&m.frozen, 0)
 	return m
 }
 
 func PutAdjacencyMatrix(m *SparseAdjacencyMatrix) {
-	for i := range m.Edges {
-		m.Edges[i] = m.Edges[i][:0]
+	for i := range m.edges {
+		m.edges[i] = m.edges[i][:0]
 	}
+	atomic.StoreUint32(&m.frozen, 0)
 	adjacencyPool.Put(m)
 }
 
 func NewSparseAdjacencyMatrix(capacity int) *SparseAdjacencyMatrix {
 	m := &SparseAdjacencyMatrix{
-		Nodes:   0,
-		Edges:   make([][]AdjacencyEntry, capacity),
+		nodes:   0,
+		edges:   make([][]AdjacencyEntry, capacity),
 		idToIdx: make(map[SatelliteID]int, capacity),
 		idxToID: make([]SatelliteID, 0, capacity),
 	}
-	for i := range m.Edges {
-		m.Edges[i] = make([]AdjacencyEntry, 0, MaxLaserLinksPerSatellite*2)
+	for i := range m.edges {
+		m.edges[i] = make([]AdjacencyEntry, 0, MaxLaserLinksPerSatellite*2)
 	}
 	return m
 }
 
+func (m *SparseAdjacencyMatrix) GetEpoch() uint64 {
+	return atomic.LoadUint64(&m.epoch)
+}
+
+func (m *SparseAdjacencyMatrix) SetEpoch(e uint64) {
+	atomic.StoreUint64(&m.epoch, e)
+}
+
+func (m *SparseAdjacencyMatrix) Freeze() {
+	atomic.StoreUint32(&m.frozen, 1)
+}
+
+func (m *SparseAdjacencyMatrix) IsFrozen() bool {
+	return atomic.LoadUint32(&m.frozen) == 1
+}
+
+func (m *SparseAdjacencyMatrix) Nodes() int {
+	return m.nodes
+}
+
 func (m *SparseAdjacencyMatrix) AddNode(id SatelliteID) int {
+	if m.IsFrozen() {
+		if idx, ok := m.idToIdx[id]; ok {
+			return idx
+		}
+		return -1
+	}
 	if idx, ok := m.idToIdx[id]; ok {
 		return idx
 	}
-	idx := m.Nodes
+	idx := m.nodes
 	m.idToIdx[id] = idx
 	m.idxToID = append(m.idxToID, id)
-	m.Nodes++
+	m.nodes++
 	return idx
 }
 
@@ -75,34 +109,40 @@ func (m *SparseAdjacencyMatrix) GetNodeIndex(id SatelliteID) (int, bool) {
 }
 
 func (m *SparseAdjacencyMatrix) GetSatelliteID(idx int) (SatelliteID, bool) {
-	if idx < 0 || idx >= m.Nodes {
+	if idx < 0 || idx >= m.nodes {
 		return 0, false
 	}
 	return m.idxToID[idx], true
 }
 
 func (m *SparseAdjacencyMatrix) AddEdge(fromIdx, toIdx int, weight float64) {
-	if fromIdx >= m.Nodes || toIdx >= m.Nodes {
+	if m.IsFrozen() {
 		return
 	}
-	m.Edges[fromIdx] = append(m.Edges[fromIdx], AdjacencyEntry{
+	if fromIdx >= m.nodes || toIdx >= m.nodes {
+		return
+	}
+	m.edges[fromIdx] = append(m.edges[fromIdx], AdjacencyEntry{
 		Target: SatelliteID(toIdx),
 		Weight: weight,
 	})
 }
 
 func (m *SparseAdjacencyMatrix) Neighbors(idx int) []AdjacencyEntry {
-	if idx < 0 || idx >= m.Nodes {
+	if idx < 0 || idx >= m.nodes {
 		return nil
 	}
-	return m.Edges[idx]
+	return m.edges[idx]
 }
 
 func (m *SparseAdjacencyMatrix) Reset() {
-	for i := 0; i < m.Nodes; i++ {
-		m.Edges[i] = m.Edges[i][:0]
+	if m.IsFrozen() {
+		return
 	}
-	m.Nodes = 0
+	for i := 0; i < m.nodes; i++ {
+		m.edges[i] = m.edges[i][:0]
+	}
+	m.nodes = 0
 	clear(m.idToIdx)
 	m.idxToID = m.idxToID[:0]
 }
@@ -111,4 +151,17 @@ func clear(m map[SatelliteID]int) {
 	for k := range m {
 		delete(m, k)
 	}
+}
+
+func (m *SparseAdjacencyMatrix) CheckConsistency() bool {
+	if len(m.idxToID) != m.nodes {
+		return false
+	}
+	for i := 0; i < m.nodes; i++ {
+		id := m.idxToID[i]
+		if idx, ok := m.idToIdx[id]; !ok || idx != i {
+			return false
+		}
+	}
+	return true
 }

@@ -28,7 +28,10 @@ func main() {
 	matrix.AddEdge(3, 4, 3.0)
 	matrix.AddEdge(4, 3, 3.0)
 
-	fmt.Fprintf(os.Stderr, "Matrix nodes: %d\n", matrix.Nodes)
+	matrix.SetEpoch(1)
+	matrix.Freeze()
+
+	fmt.Fprintf(os.Stderr, "Matrix nodes: %d, epoch: %d, frozen: %v\n", matrix.Nodes(), matrix.GetEpoch(), matrix.IsFrozen())
 
 	router := routing.NewRouter()
 	result := router.Dijkstra(matrix, 0, 4)

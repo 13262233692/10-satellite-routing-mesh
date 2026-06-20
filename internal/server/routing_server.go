@@ -15,17 +15,26 @@ type RoutingServer struct {
 
 	topoMgr *topology.TopologyManager
 	router  *routing.Router
+	cache   *routing.RouteCache
 }
 
-func NewRoutingServer(topoMgr *topology.TopologyManager, router *routing.Router) *RoutingServer {
-	return &RoutingServer{
+func NewRoutingServer(topoMgr *topology.TopologyManager, router *routing.Router, cache *routing.RouteCache) *RoutingServer {
+	srv := &RoutingServer{
 		topoMgr: topoMgr,
 		router:  router,
+		cache:   cache,
 	}
+	if cache != nil {
+		topoMgr.SetCacheInvalidator(cache)
+		cache.SetEpoch(topoMgr.GetEpoch())
+	}
+	return srv
 }
 
 func (s *RoutingServer) FindRoute(ctx context.Context, req *routingpb.FindRouteRequest) (*routingpb.FindRouteResponse, error) {
-	matrix := s.topoMgr.GetMatrix()
+	snapshot := s.topoMgr.GetSnapshot()
+	matrix := snapshot.Matrix
+	epoch := snapshot.Epoch
 
 	fromID := model.SatelliteID(req.GetFromSatelliteId())
 	toID := model.SatelliteID(req.GetToSatelliteId())
@@ -36,21 +45,35 @@ func (s *RoutingServer) FindRoute(ctx context.Context, req *routingpb.FindRouteR
 	}
 
 	var result model.RouteResult
+	cacheHit := false
 
-	switch algo {
-	case "astar", "a*", "a_star":
-		positions := s.getPositionArray(matrix)
-		result = s.router.AStar(matrix, fromID, toID, positions)
-	default:
-		result = s.router.Dijkstra(matrix, fromID, toID)
+	if s.cache != nil && algo == "dijkstra" {
+		if cached, ok := s.cache.Get(fromID, toID, epoch); ok {
+			result = cached
+			cacheHit = true
+		}
+	}
+
+	if !cacheHit {
+		switch algo {
+		case "astar", "a*", "a_star":
+			positions := s.getPositionArray(matrix)
+			result = s.router.AStar(matrix, fromID, toID, positions)
+		default:
+			result = s.router.Dijkstra(matrix, fromID, toID)
+		}
+
+		if s.cache != nil && algo == "dijkstra" && result.Found {
+			s.cache.Put(fromID, toID, epoch, result)
+		}
 	}
 
 	resp := &routingpb.FindRouteResponse{
-		Found:              result.Found,
+		Found:               result.Found,
 		TotalDistanceMeters: result.TotalDist,
 		TotalLatencySeconds: result.Latency,
-		Hops:               int32(result.Hops),
-		TopologyVersion:    s.topoMgr.LastUpdateTime(),
+		Hops:                int32(result.Hops),
+		TopologyVersion:     int64(epoch),
 	}
 
 	if result.Found {
@@ -119,7 +142,7 @@ func (s *RoutingServer) buildHopsDetail(path []model.SatelliteID, matrix *model.
 }
 
 func (s *RoutingServer) getPositionArray(matrix *model.SparseAdjacencyMatrix) []model.Vec3 {
-	n := matrix.Nodes
+	n := matrix.Nodes()
 	positions := make([]model.Vec3, n)
 
 	for i := 0; i < n; i++ {
@@ -128,4 +151,11 @@ func (s *RoutingServer) getPositionArray(matrix *model.SparseAdjacencyMatrix) []
 	}
 
 	return positions
+}
+
+func (s *RoutingServer) GetCacheStats() (hits, misses, evicts uint64) {
+	if s.cache == nil {
+		return 0, 0, 0
+	}
+	return s.cache.Stats()
 }

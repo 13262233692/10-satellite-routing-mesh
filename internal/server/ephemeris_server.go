@@ -102,14 +102,14 @@ func (s *EphemerisServer) RebuildTopology(ctx context.Context, req *routingpb.Re
 
 	matrix := s.topoMgr.GetMatrix()
 	linkCount := 0
-	for i := 0; i < matrix.Nodes; i++ {
+	for i := 0; i < matrix.Nodes(); i++ {
 		linkCount += len(matrix.Neighbors(i))
 	}
 
 	return &routingpb.RebuildTopologyResponse{
 		Success:        true,
 		RebuildTimeNs:  elapsed.Nanoseconds(),
-		SatelliteCount: int32(matrix.Nodes),
+		SatelliteCount: int32(matrix.Nodes()),
 		LinkCount:      int32(linkCount / 2),
 	}, nil
 }

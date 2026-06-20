@@ -1,6 +1,7 @@
 package topology
 
 import (
+	"log"
 	"math"
 	"sort"
 	"sync"
@@ -12,21 +13,29 @@ import (
 
 const speedOfLight = 299792458
 
+type CacheInvalidator interface {
+	InvalidateEpoch(epoch uint64)
+	SetEpoch(epoch uint64)
+}
+
 type TopologyManager struct {
-	satellites    []model.Satellite
-	satellitesLen int
-	ephemerides   []model.Ephemeris
-	ephemValid    []bool
+	satellites  []model.Satellite
+	ephemerides []model.Ephemeris
+	ephemValid  []bool
 
 	activeMatrix atomic.Value
 	buildMatrix  *model.SparseAdjacencyMatrix
 
-	buildLock sync.Mutex
+	epochCounter atomic.Uint64
+	buildLock    sync.Mutex
 
 	maxLinkDist float64
 	maxLasers   int
 
 	lastUpdate atomic.Int64
+
+	cacheInvalidator CacheInvalidator
+	cacheMu          sync.RWMutex
 }
 
 func NewTopologyManager(maxSatellites int) *TopologyManager {
@@ -41,14 +50,38 @@ func NewTopologyManager(maxSatellites int) *TopologyManager {
 	matrixA := model.NewSparseAdjacencyMatrix(maxSatellites)
 	matrixB := model.NewSparseAdjacencyMatrix(maxSatellites)
 
+	matrixA.SetEpoch(1)
+	matrixB.SetEpoch(0)
+	matrixA.Freeze()
+
+	tm.epochCounter.Store(1)
 	tm.activeMatrix.Store(matrixA)
 	tm.buildMatrix = matrixB
 
 	return tm
 }
 
+func (tm *TopologyManager) SetCacheInvalidator(ci CacheInvalidator) {
+	tm.cacheMu.Lock()
+	defer tm.cacheMu.Unlock()
+	tm.cacheInvalidator = ci
+}
+
+func (tm *TopologyManager) GetSnapshot() model.TopologySnapshot {
+	matrix := tm.activeMatrix.Load().(*model.SparseAdjacencyMatrix)
+	return model.TopologySnapshot{
+		Matrix: matrix,
+		Epoch:  matrix.GetEpoch(),
+	}
+}
+
 func (tm *TopologyManager) GetMatrix() *model.SparseAdjacencyMatrix {
 	return tm.activeMatrix.Load().(*model.SparseAdjacencyMatrix)
+}
+
+func (tm *TopologyManager) GetEpoch() uint64 {
+	matrix := tm.activeMatrix.Load().(*model.SparseAdjacencyMatrix)
+	return matrix.GetEpoch()
 }
 
 func (tm *TopologyManager) UpdateEphemeris(ephem *model.Ephemeris) {
@@ -70,35 +103,48 @@ func (tm *TopologyManager) BatchUpdateEphemerides(ephems []model.Ephemeris) {
 	}
 }
 
-func (tm *TopologyManager) RebuildTopology() {
+func (tm *TopologyManager) RebuildTopology() uint64 {
 	tm.buildLock.Lock()
 	defer tm.buildLock.Unlock()
 
-	matrix := tm.buildMatrix
-	matrix.Reset()
+	oldActive := tm.activeMatrix.Load().(*model.SparseAdjacencyMatrix)
+	oldEpoch := oldActive.GetEpoch()
+
+	newMatrix := tm.buildMatrix
+	newMatrix.Reset()
 
 	validCount := 0
 	for i := 0; i < len(tm.ephemValid); i++ {
 		if tm.ephemValid[i] {
-			matrix.AddNode(model.SatelliteID(i))
+			newMatrix.AddNode(model.SatelliteID(i))
 			validCount++
 		}
 	}
 
-	if validCount < 2 {
-		tm.swapMatrix()
-		return
+	if validCount >= 2 {
+		tm.buildEdges(newMatrix)
 	}
 
-	tm.buildEdges(matrix)
-	tm.swapMatrix()
-	tm.lastUpdate.Store(time.Now().UnixNano())
-}
+	if !newMatrix.CheckConsistency() {
+		log.Printf("WARNING: Matrix consistency check failed at epoch %d, aborting swap", oldEpoch+1)
+		return oldEpoch
+	}
 
-func (tm *TopologyManager) swapMatrix() {
-	old := tm.activeMatrix.Load().(*model.SparseAdjacencyMatrix)
-	tm.activeMatrix.Store(tm.buildMatrix)
-	tm.buildMatrix = old
+	newEpoch := tm.epochCounter.Add(1)
+	newMatrix.SetEpoch(newEpoch)
+	newMatrix.Freeze()
+
+	tm.activeMatrix.Store(newMatrix)
+	tm.buildMatrix = oldActive
+
+	if tm.cacheInvalidator != nil {
+		tm.cacheInvalidator.SetEpoch(newEpoch)
+		tm.cacheInvalidator.InvalidateEpoch(oldEpoch)
+	}
+
+	tm.lastUpdate.Store(time.Now().UnixNano())
+
+	return newEpoch
 }
 
 type candidateLink struct {
@@ -107,7 +153,7 @@ type candidateLink struct {
 }
 
 func (tm *TopologyManager) buildEdges(matrix *model.SparseAdjacencyMatrix) {
-	n := matrix.Nodes
+	n := matrix.Nodes()
 	if n == 0 {
 		return
 	}

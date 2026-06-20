@@ -21,18 +21,19 @@ func NewTopologyServer(topoMgr *topology.TopologyManager) *TopologyServer {
 }
 
 func (s *TopologyServer) GetTopologyInfo(ctx context.Context, req *routingpb.GetTopologyInfoRequest) (*routingpb.GetTopologyInfoResponse, error) {
-	matrix := s.topoMgr.GetMatrix()
+	snapshot := s.topoMgr.GetSnapshot()
+	matrix := snapshot.Matrix
 
 	linkCount := 0
-	for i := 0; i < matrix.Nodes; i++ {
+	for i := 0; i < matrix.Nodes(); i++ {
 		linkCount += len(matrix.Neighbors(i))
 	}
 
 	return &routingpb.GetTopologyInfoResponse{
-		SatelliteCount:     int32(matrix.Nodes),
+		SatelliteCount:     int32(matrix.Nodes()),
 		LinkCount:          int32(linkCount / 2),
 		LastUpdateTimestamp: s.topoMgr.LastUpdateTime(),
-		TopologyVersion:    uint64(s.topoMgr.LastUpdateTime()),
+		TopologyVersion:    snapshot.Epoch,
 	}, nil
 }
 

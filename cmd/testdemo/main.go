@@ -40,13 +40,14 @@ func testTopologyManager() {
 		tm.AddSatellite(sat)
 	}
 
-	tm.RebuildTopology()
+	newEpoch := tm.RebuildTopology()
 
-	matrix := tm.GetMatrix()
-	fmt.Printf("Nodes: %d\n", matrix.Nodes)
+	snapshot := tm.GetSnapshot()
+	matrix := snapshot.Matrix
+	fmt.Printf("Epoch: %d, Nodes: %d\n", newEpoch, matrix.Nodes())
 
 	linkCount := 0
-	for i := 0; i < matrix.Nodes; i++ {
+	for i := 0; i < matrix.Nodes(); i++ {
 		neighbors := matrix.Neighbors(i)
 		linkCount += len(neighbors)
 		fmt.Printf("  Node %d has %d neighbors\n", i, len(neighbors))
@@ -78,6 +79,9 @@ func testRouter() {
 
 	matrix.AddEdge(0, 9, 0.005)
 	matrix.AddEdge(9, 0, 0.005)
+
+	matrix.SetEpoch(1)
+	matrix.Freeze()
 
 	router := routing.NewRouter()
 
